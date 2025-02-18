@@ -1,0 +1,69 @@
+name: Create EC2 Snapshots for Multiple Instances
+
+on:
+  workflow_dispatch:
+    inputs:
+      instance_ids:
+        description: 'Comma-separated list of EC2 Instance IDs'
+        required: true
+      reference_id:
+        description: 'Reference ID'
+        required: true
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+      aws_session_token:
+        description: 'AWS Session Token'
+        required: true
+      aws_region:
+        description: 'AWS Region'
+        required: true
+
+jobs:
+  create-snapshots:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ github.event.inputs.aws_access_key_id }}
+        aws-secret-access-key: ${{ github.event.inputs.aws_secret_access_key }}
+        aws-session-token: ${{ github.event.inputs.aws_session_token }}
+        aws-region: ${{ github.event.inputs.aws_region }}
+
+    - name: Create Snapshots for Each Instance
+      id: create-snapshots
+      run: |
+        INSTANCE_IDS=${{ github.event.inputs.instance_ids }}
+        REFERENCE_ID=${{ github.event.inputs.reference_id }}
+        CURRENT_DATE=$(date +%Y-%m-%d)
+
+        # Split the comma-separated instance IDs into an array
+        IFS=',' read -r -a INSTANCE_ID_ARRAY <<< "$INSTANCE_IDS"
+
+        for INSTANCE_ID in "${INSTANCE_ID_ARRAY[@]}"; do
+          echo "Processing instance: $INSTANCE_ID"
+
+          # Get the volume IDs attached to the instance
+          VOLUME_IDS=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].BlockDeviceMappings[*].Ebs.VolumeId" --output text)
+
+          for VOLUME_ID in $VOLUME_IDS; do
+            echo "Creating snapshot for volume: $VOLUME_ID"
+
+            # Create the snapshot name
+            SNAPSHOT_NAME="${INSTANCE_ID}_${VOLUME_ID}_${REFERENCE_ID}_${CURRENT_DATE}"
+
+            # Create the snapshot
+            SNAPSHOT_ID=$(aws ec2 create-snapshot --volume-id $VOLUME_ID --description "Snapshot for $INSTANCE_ID" --tag-specifications "ResourceType=snapshot,Tags=[{Key=Name,Value=$SNAPSHOT_NAME}]" --query "SnapshotId" --output text)
+
+            echo "Snapshot created with ID: $SNAPSHOT_ID"
+            echo "Snapshot Name: $SNAPSHOT_NAME"
+          done
+        done
