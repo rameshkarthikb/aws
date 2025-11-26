@@ -1,3 +1,8 @@
+# AWS EBS Snapshot Creation Flowchart
+
+This flowchart visualizes the complete workflow for the AWS EBS Snapshot Creation Ansible playbook.
+
+```mermaid
 graph TD
     Start([Start: User Launches<br/>AAP Job Template]) --> Input[Collect Survey Inputs:<br/>- instance_ids CSV<br/>- aws_access_key<br/>- aws_secret_key<br/>- aws_session_token<br/>- aws_region<br/>- reference_number<br/>- optional_email_id]
     
@@ -105,3 +110,4 @@ graph TD
     style SendFinalEmail fill:#fff3cd,stroke:#ffc107
     style CreateSnapshots fill:#d1ecf1,stroke:#0c5460
     style WaitLoop fill:#d1ecf1,stroke:#0c5460
+Description
